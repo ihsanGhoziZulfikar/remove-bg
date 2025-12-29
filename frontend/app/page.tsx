@@ -6,8 +6,10 @@ export default function RemoveBGApp() {
   const [selectedMode, setSelectedMode] = useState("standard");
   const [dragActive, setDragActive] = useState(false);
   const [activeTab, setActiveTab] = useState("upload"); // "upload" or "camera"
-  const [stream, setStream] = useState(null);
+  const [stream, setStream] = useState<MediaStream | null>(null);
   const [cameraQuality, setCameraQuality] = useState("hd");
+  const [showGrid, setShowGrid] = useState(false);
+  const [countdown, setCountdown] = useState<number | null>(null);
   const videoRef = useRef(null);
 
   const handleDrag = (e) => {
@@ -60,8 +62,19 @@ export default function RemoveBGApp() {
   };
 
   const captureImage = () => {
-    // Capture image logic here
-    console.log("Capturing image...");
+    if (countdown !== null) return; // Prevent multiple captures
+    setCountdown(3);
+    const interval = setInterval(() => {
+      setCountdown((prev) => {
+        if (prev === 1) {
+          clearInterval(interval);
+          // Capture image logic here
+          console.log("Capturing image...");
+          return null;
+        }
+        return prev - 1;
+      });
+    }, 1000);
   };
 
   useEffect(() => {
@@ -336,10 +349,40 @@ export default function RemoveBGApp() {
                       muted
                       className="w-full h-full object-cover"
                     />
-                    
+
+                    {/* Grid Overlay */}
+                    {showGrid && (
+                      <div className="absolute inset-0 pointer-events-none">
+                        <div className="w-full h-full bg-transparent" style={{
+                          backgroundImage: `
+                            linear-gradient(0deg, rgba(255,255,255,0.5) 0%, rgba(255,255,255,0.5) 1px, transparent 1px, transparent 33.33%),
+                            linear-gradient(90deg, rgba(255,255,255,0.5) 0%, rgba(255,255,255,0.5) 1px, transparent 1px, transparent 33.33%)
+                          `,
+                          backgroundSize: '33.33% 33.33%'
+                        }} />
+                      </div>
+                    )}
+
+                    {/* Countdown Display */}
+                    {countdown !== null && (
+                      <div className="absolute inset-0 flex items-center justify-center bg-black bg-opacity-20">
+                        <div className="text-white text-8xl font-bold animate-pulse drop-shadow-lg">
+                          {countdown}
+                        </div>
+                      </div>
+                    )}
+
                     {/* Camera Controls Overlay */}
-                    <div className="absolute bottom-4 right-4">
-                      <button 
+                    <div className="absolute bottom-4 right-4 flex gap-2">
+                      <button
+                        onClick={() => setShowGrid(!showGrid)}
+                        className={`rounded-full p-3 shadow-lg hover:bg-gray-100 transition-all ${showGrid ? 'bg-blue-500 text-white' : 'bg-white text-gray-700'}`}
+                      >
+                        <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2V6zM14 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V6zM4 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2v-2zM14 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z" />
+                        </svg>
+                      </button>
+                      <button
                         onClick={captureImage}
                         className="bg-white rounded-full p-3 shadow-lg hover:bg-gray-100 transition-all"
                       >
