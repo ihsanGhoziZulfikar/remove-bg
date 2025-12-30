@@ -10,9 +10,12 @@ export default function RemoveBGApp() {
   const [cameraQuality, setCameraQuality] = useState("hd");
   const [showGrid, setShowGrid] = useState(false);
   const [countdown, setCountdown] = useState<number | null>(null);
-  const videoRef = useRef(null);
+  const [uploadedFile, setUploadedFile] = useState<File | null>(null);
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const videoRef = useRef<HTMLVideoElement>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
-  const handleDrag = (e) => {
+  const handleDrag = (e: React.DragEvent) => {
     e.preventDefault();
     e.stopPropagation();
     if (e.type === "dragenter" || e.type === "dragover") {
@@ -22,11 +25,73 @@ export default function RemoveBGApp() {
     }
   };
 
-  const handleDrop = (e) => {
+  const handleBrowseClick = () => {
+    fileInputRef.current?.click();
+  };
+
+  const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+    setErrorMessage(null);
+    const files = e.target.files;
+    if (files && files[0]) {
+      const file = files[0];
+      const error = validateFile(file);
+      if (error) {
+        setErrorMessage(error);
+      } else {
+        setUploadedFile(file);
+      }
+    }
+  };
+
+  const handleExampleImageClick = async (imageIndex: number) => {
+    setErrorMessage(null);
+    try {
+      const response = await fetch(`/asset/${imageIndex}.png`);
+      const blob = await response.blob();
+      const file = new File([blob], `${imageIndex}.png`, { type: 'image/png' });
+      const error = validateFile(file);
+      if (error) {
+        setErrorMessage(error);
+      } else {
+        setUploadedFile(file);
+      }
+    } catch (err) {
+      console.error('Error loading example image:', err);
+      setErrorMessage('Failed to load example image.');
+    }
+  };
+
+  const validateFile = (file: File): string | null => {
+    const allowedTypes = ['image/png', 'image/jpeg', 'image/webp'];
+    const maxSize = 100 * 1024 * 1024; // 100MB
+
+    if (!allowedTypes.includes(file.type)) {
+      return 'Unsupported file format. Try again with a PNG, JPG, or WebP file.';
+    }
+
+    if (file.size > maxSize) {
+      return 'File too large. Try again with maximum size 100 MB.';
+    }
+
+    return null;
+  };
+
+  const handleDrop = (e: React.DragEvent) => {
     e.preventDefault();
     e.stopPropagation();
     setDragActive(false);
-    // Handle file upload logic here
+    setErrorMessage(null);
+
+    const files = e.dataTransfer.files;
+    if (files && files[0]) {
+      const file = files[0];
+      const error = validateFile(file);
+      if (error) {
+        setErrorMessage(error);
+      } else {
+        setUploadedFile(file);
+      }
+    }
   };
 
   const startCamera = async () => {
@@ -66,15 +131,41 @@ export default function RemoveBGApp() {
     setCountdown(3);
     const interval = setInterval(() => {
       setCountdown((prev) => {
-        if (prev === 1) {
+        if (prev !== null && prev === 1) {
           clearInterval(interval);
           // Capture image logic here
           console.log("Capturing image...");
           return null;
         }
-        return prev - 1;
+        return prev !== null ? prev - 1 : null;
       });
     }, 1000);
+  };
+
+  const handlePaste = async (e: ClipboardEvent) => {
+    if (activeTab !== "upload") return;
+
+    e.preventDefault();
+    setErrorMessage(null);
+
+    const items = e.clipboardData?.items;
+    if (!items) return;
+
+    for (let i = 0; i < items.length; i++) {
+      const item = items[i];
+      if (item.type.indexOf('image') !== -1) {
+        const file = item.getAsFile();
+        if (file) {
+          const error = validateFile(file);
+          if (error) {
+            setErrorMessage(error);
+          } else {
+            setUploadedFile(file);
+          }
+        }
+        break; // Only handle the first image
+      }
+    }
   };
 
   useEffect(() => {
@@ -83,6 +174,18 @@ export default function RemoveBGApp() {
       stopCamera();
     };
   }, []);
+
+  useEffect(() => {
+    if (activeTab === "upload") {
+      document.addEventListener('paste', handlePaste);
+    } else {
+      document.removeEventListener('paste', handlePaste);
+    }
+
+    return () => {
+      document.removeEventListener('paste', handlePaste);
+    };
+  }, [activeTab]);
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -190,59 +293,119 @@ export default function RemoveBGApp() {
             {activeTab === "upload" && (
               <>
                 <div className="bg-white rounded-2xl shadow-lg p-8">
-                  <div
-                    className={`border-2 border-dashed rounded-xl p-12 text-center transition-colors ${
-                      dragActive ? "border-blue-500 bg-blue-50" : "border-gray-300"
-                    }`}
-                    onDragEnter={handleDrag}
-                    onDragLeave={handleDrag}
-                    onDragOver={handleDrag}
-                    onDrop={handleDrop}
-                  >
-                    <div className="mb-4 flex justify-center">
-                      <div className="w-24 h-24 flex items-center justify-center">
+                  {uploadedFile ? (
+                    <div className="relative">
+                      <div className="w-full max-h-[480px] rounded-xl overflow-hidden flex items-center justify-center bg-gray-50">
                         <img
-                          src="/asset/Group 1.png"
-                          alt="Preview"
-                          className="w-full h-full object-contain"
+                          src={URL.createObjectURL(uploadedFile)}
+                          alt="Uploaded Preview"
+                          className="max-w-full max-h-full object-contain"
                         />
                       </div>
+                      <div className="absolute bottom-4 left-4 right-4 bg-transparent bg-opacity-50 rounded-lg p-4 text-white">
+                        {/* <p className="font-medium mb-2">Uploaded: {uploadedFile.name}</p> */}
+                        <button
+                          onClick={handleBrowseClick}
+                          className="bg-white text-gray-800 rounded-3xl px-4 py-2 text-sm font-medium inline-flex items-center gap-2 hover:bg-gray-100 transition-colors"
+                        >
+                          <svg
+                            className="w-4 h-4"
+                            fill="none"
+                            stroke="currentColor"
+                            viewBox="0 0 24 24"
+                          >
+                            <path
+                              strokeLinecap="round"
+                              strokeLinejoin="round"
+                              strokeWidth={2}
+                              d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"
+                            />
+                          </svg>
+                          Change Image
+                        </button>
+                      </div>
                     </div>
-                    <p className="text-gray-600 mb-2 font-medium">
-                      Drag and drop your images or folders here
-                    </p>
-                    <p className="text-gray-500 mb-4">or</p>
-                    <button className="bg-[#DBF2F3] text-blue-400 rounded-3xl px-6 py-2.5 font-medium inline-flex items-center gap-2 hover:bg-[#0076D2] hover:text-white transition-colors">
-                      <svg
-                        className="w-4 h-4"
-                        fill="none"
-                        stroke="currentColor"
-                        viewBox="0 0 24 24"
-                      >
-                        <path
-                          strokeLinecap="round"
-                          strokeLinejoin="round"
-                          strokeWidth={2}
-                          d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"
-                        />
-                      </svg>
-                      Browse Files
-                    </button>
-                  </div>
-                  <p className="text-sm text-blue-500 mt-3 flex items-center gap-2">
-                    <svg
-                      className="w-4 h-4 text-blue-600"
-                      fill="currentColor"
-                      viewBox="0 0 20 20"
+                  ) : (
+                    <div
+                      className={`bg-[#F1F9FA] border-2 border-[#58C3EA] border-dashed rounded-xl p-12 text-center transition-colors ${
+                        dragActive ? "border-blue-500 bg-blue-50" : "border-gray-300"
+                      }`}
+                      onDragEnter={handleDrag}
+                      onDragLeave={handleDrag}
+                      onDragOver={handleDrag}
+                      onDrop={handleDrop}
                     >
-                      <path
-                        fillRule="evenodd"
-                        d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z"
-                        clipRule="evenodd"
-                      />
-                    </svg>
+                      <div className="mb-4 flex justify-center">
+                        <div className="w-24 h-24 flex items-center justify-center">
+                          <img
+                            src="/asset/Group 1.png"
+                            alt="Preview"
+                            className="w-full h-full object-contain"
+                          />
+                        </div>
+                      </div>
+                      <p className="text-gray-600 mb-2 font-medium">
+                        Drag and drop your images or folders here
+                      </p>
+                      <p className="text-gray-500 mb-4">or</p>
+                      <button
+                        onClick={handleBrowseClick}
+                        className="bg-[#DBF2F3] text-blue-400 rounded-3xl px-6 py-2.5 font-medium inline-flex items-center gap-2 hover:bg-[#0076D2] hover:text-white transition-colors"
+                      >
+                        <svg
+                          className="w-4 h-4"
+                          fill="none"
+                          stroke="currentColor"
+                          viewBox="0 0 24 24"
+                        >
+                          <path
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                            strokeWidth={2}
+                            d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"
+                          />
+                        
+                      </svg>
+                        Browse Files
+                      </button>
+                    </div>
+                  )}
+                  <p className="text-sm text-blue-500 mt-3 flex items-center gap-2">
+                    <img src="/icons/info.svg" alt="info" />
                     Supported formats: PNG, JPG, and WebP (Max 100MB)
                   </p>
+                  {errorMessage && (
+                    <div className="mt-4 p-4 bg-gradient-to-r from-red-50 to-red-100 border border-red-200 rounded-3xl shadow-sm animate-in slide-in-from-top-2 duration-300">
+                      <div className="flex items-start gap-3">
+                        <div className="flex-shrink-0">
+                          <img src="/icons/exclamation-circle.svg" alt="error" />
+                        </div>
+                        <div className="flex-1">
+                          <h4 className="text-sm font-semibold text-red-800 mb-1">
+                            Failed!
+                          </h4>
+                          <p className="text-sm text-red-700 leading-relaxed">
+                            {errorMessage}
+                          </p>
+                        </div>
+                        <button
+                          onClick={() => setErrorMessage(null)}
+                          className="flex-shrink-0 text-red-400 hover:text-red-600 transition-colors"
+                        >
+                          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                          </svg>
+                        </button>
+                      </div>
+                    </div>
+                  )}
+                  <input
+                    type="file"
+                    ref={fileInputRef}
+                    onChange={handleFileSelect}
+                    accept="image/png,image/jpeg,image/webp"
+                    className="hidden"
+                  />
                 </div>
 
                 {/* Processing Mode Selection */}
@@ -435,6 +598,7 @@ export default function RemoveBGApp() {
                 {[1, 2, 3].map((i) => (
                   <div
                     key={i}
+                    onClick={() => handleExampleImageClick(i)}
                     className="w-24 h-24 bg-white rounded-2xl cursor-pointer hover:ring-2 hover:ring-blue-500 transition-all flex items-center justify-center shadow-sm overflow-hidden"
                   >
                     <img
