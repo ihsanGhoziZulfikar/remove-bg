@@ -32,7 +32,7 @@ export default function RemoveBGApp() {
 
     const formData = new FormData();
     formData.append("image_file", file);
-    formData.append("mode", selectedMode); // Mengirim mode yang dipilih ke API
+    formData.append("mode", selectedMode);
 
     try {
       const response = await fetch("/api/remove-bg", {
@@ -273,7 +273,7 @@ export default function RemoveBGApp() {
                   <br />
                   Seconds for Free
                 </span>
-                <span className="hidden sm:block">
+                <span className="hidden sm:block text-left">
                   Remove Image
                   <br />
                   Backgrounds in
@@ -293,55 +293,61 @@ export default function RemoveBGApp() {
           <div className="lg:col-span-3 lg:col-start-3 order-2 space-y-4">
             {/* Tab Buttons */}
             <div className="flex justify-center">
-              <div className="inline-flex bg-white rounded-2xl p-1 shadow-sm border border-gray-200 overflow-hidden">
-                <button
-                  onClick={() => handleTabChange("upload")}
-                  className={`rounded-2xl px-3 sm:px-4 py-2 text-xs sm:text-sm font-medium flex items-center gap-1 sm:gap-2 transition-colors ${
-                    activeTab === "upload"
-                      ? "bg-[#0076D2] text-white"
-                      : "bg-transparent text-gray-600 hover:bg-gray-50"
-                  }`}
-                >
-                  <svg
-                    className="w-3 h-3 sm:w-4 sm:h-4 flex-shrink-0"
-                    fill="none"
-                    stroke="currentColor"
-                    viewBox="0 0 24 24"
+              {/* Tab Buttons */}
+              <div className="flex justify-center">
+                {/* Container utama diubah menjadi rounded-full dan bg-gray-200 agar seperti track */}
+                <div className="inline-flex bg-gray-200 rounded-full relative">
+                  {/* Tombol Upload */}
+                  <button
+                    onClick={() => handleTabChange("upload")}
+                    className={`rounded-full px-6 py-2.5 text-sm font-medium flex items-center gap-2 transition-all duration-200 ease-in-out ${
+                      activeTab === "upload"
+                        ? "bg-[#0076D2] text-white shadow-md" // Style saat aktif
+                        : "bg-transparent text-gray-600 hover:text-gray-900" // Style saat tidak aktif
+                    }`}
                   >
-                    <path
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      strokeWidth={2}
-                      d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"
-                    />
-                  </svg>
-                  <span className="hidden sm:inline">Upload Image</span>
-                  <span className="sm:hidden">Upload</span>
-                </button>
-                <button
-                  onClick={() => handleTabChange("camera")}
-                  className={`rounded-2xl px-3 sm:px-4 py-2 text-xs sm:text-sm font-medium flex items-center gap-1 sm:gap-2 transition-colors ${
-                    activeTab === "camera"
-                      ? "bg-[#0076D2] text-white"
-                      : "bg-transparent text-gray-600 hover:bg-gray-50"
-                  }`}
-                >
-                  <svg
-                    className="w-3 h-3 sm:w-4 sm:h-4 flex-shrink-0"
-                    fill="none"
-                    stroke="currentColor"
-                    viewBox="0 0 24 24"
+                    <svg
+                      className="w-4 h-4 sm:w-5 sm:h-5 flex-shrink-0"
+                      fill="none"
+                      stroke="currentColor"
+                      viewBox="0 0 24 24"
+                    >
+                      <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        strokeWidth={2}
+                        d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"
+                      />
+                    </svg>
+                    <span>Upload Image</span>
+                  </button>
+
+                  {/* Tombol Camera */}
+                  <button
+                    onClick={() => handleTabChange("camera")}
+                    className={`rounded-full px-6 py-2.5 text-sm font-medium flex items-center gap-2 transition-all duration-200 ease-in-out ${
+                      activeTab === "camera"
+                        ? "bg-[#0076D2] text-white shadow-md"
+                        : "bg-transparent text-gray-600 hover:text-gray-900"
+                    }`}
                   >
-                    <path
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      strokeWidth={2}
-                      d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z"
-                    />
-                  </svg>
-                  <span className="hidden sm:inline">Live Camera</span>
-                  <span className="sm:hidden">Camera</span>
-                </button>
+                    {/* Icon Kamera (Opsional: Hapus svg ini jika ingin persis seperti gambar yang hanya teks 'Live Camera') */}
+                    <svg
+                      className="w-4 h-4 sm:w-5 sm:h-5 flex-shrink-0"
+                      fill="none"
+                      stroke="currentColor"
+                      viewBox="0 0 24 24"
+                    >
+                      <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        strokeWidth={2}
+                        d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z"
+                      />
+                    </svg>
+                    <span>Live Camera</span>
+                  </button>
+                </div>
               </div>
             </div>
 
@@ -543,91 +549,6 @@ export default function RemoveBGApp() {
               </div>
             )}
 
-            <div className="p-4">
-              <h3 className="font-semibold text-gray-900 mb-4 text-sm">
-                Select Image Processing Model
-              </h3>
-              <div className="flex flex-col sm:flex-row gap-3">
-                <label
-                  className={`flex-1 flex flex-col p-3 sm:p-4 border-2 rounded-xl cursor-pointer transition-all ${
-                    selectedMode === "standard"
-                      ? "border-blue-500 bg-blue-50"
-                      : "border-gray-200 hover:border-gray-300"
-                  }`}
-                >
-                  <div className="flex items-center gap-2 mb-2">
-                    <input
-                      type="radio"
-                      name="mode"
-                      value="standard"
-                      checked={selectedMode === "standard"}
-                      onChange={(e) => setSelectedMode(e.target.value)}
-                      className="w-4 h-4 text-blue-600 accent-blue-600"
-                    />
-                    <div className="font-semibold text-gray-900 text-sm">
-                      Standard
-                    </div>
-                  </div>
-                  <div className="text-xs text-gray-500 leading-relaxed">
-                    Best for complex details like hair, fur, or semi-transparent
-                    objects.
-                  </div>
-                </label>
-
-                <label
-                  className={`flex-1 flex flex-col p-3 sm:p-4 border-2 rounded-xl cursor-pointer transition-all ${
-                    selectedMode === "high-quality"
-                      ? "border-blue-500 bg-blue-50"
-                      : "border-gray-200 hover:border-gray-300"
-                  }`}
-                >
-                  <div className="flex items-center gap-2 mb-2">
-                    <input
-                      type="radio"
-                      name="mode"
-                      value="high-quality"
-                      checked={selectedMode === "high-quality"}
-                      onChange={(e) => setSelectedMode(e.target.value)}
-                      className="w-4 h-4 text-blue-600 accent-blue-600"
-                    />
-                    <div className="font-semibold text-gray-900 text-sm">
-                      High Quality
-                    </div>
-                  </div>
-                  <div className="text-xs text-gray-500 leading-relaxed">
-                    Balance on best details available for most portraits and
-                    product photos.
-                  </div>
-                </label>
-
-                <label
-                  className={`flex-1 flex flex-col p-3 sm:p-4 border-2 rounded-xl cursor-pointer transition-all ${
-                    selectedMode === "fast"
-                      ? "border-blue-500 bg-blue-50"
-                      : "border-gray-200 hover:border-gray-300"
-                  }`}
-                >
-                  <div className="flex items-center gap-2 mb-2">
-                    <input
-                      type="radio"
-                      name="mode"
-                      value="fast"
-                      checked={selectedMode === "fast"}
-                      onChange={(e) => setSelectedMode(e.target.value)}
-                      className="w-4 h-4 text-blue-600 accent-blue-600"
-                    />
-                    <div className="font-semibold text-gray-900 text-sm">
-                      Fast Processing
-                    </div>
-                  </div>
-                  <div className="text-xs text-gray-500 leading-relaxed">
-                    Quick result, ideal for simple objects or solid color
-                    background.
-                  </div>
-                </label>
-              </div>
-            </div>
-
             {/* Camera View */}
             {activeTab === "camera" && (
               <>
@@ -815,6 +736,92 @@ export default function RemoveBGApp() {
                 </div>
               </>
             )}
+
+            {/* Select Image Processing Model (Moved Here) */}
+            <div className="p-4">
+              <h3 className="font-semibold text-gray-900 mb-4 text-sm">
+                Select Image Processing Model
+              </h3>
+              <div className="flex flex-col sm:flex-row gap-3">
+                <label
+                  className={`flex-1 flex flex-col p-3 sm:p-4 border-2 rounded-xl cursor-pointer transition-all ${
+                    selectedMode === "standard"
+                      ? "border-blue-500 bg-blue-50"
+                      : "border-gray-200 hover:border-gray-300"
+                  }`}
+                >
+                  <div className="flex items-center gap-2 mb-2">
+                    <input
+                      type="radio"
+                      name="mode"
+                      value="standard"
+                      checked={selectedMode === "standard"}
+                      onChange={(e) => setSelectedMode(e.target.value)}
+                      className="w-4 h-4 text-blue-600 accent-blue-600"
+                    />
+                    <div className="font-semibold text-gray-900 text-sm">
+                      Standard
+                    </div>
+                  </div>
+                  <div className="text-xs text-gray-500 leading-relaxed">
+                    Best for complex details like hair, fur, or semi-transparent
+                    objects.
+                  </div>
+                </label>
+
+                <label
+                  className={`flex-1 flex flex-col p-3 sm:p-4 border-2 rounded-xl cursor-pointer transition-all ${
+                    selectedMode === "high-quality"
+                      ? "border-blue-500 bg-blue-50"
+                      : "border-gray-200 hover:border-gray-300"
+                  }`}
+                >
+                  <div className="flex items-center gap-2 mb-2">
+                    <input
+                      type="radio"
+                      name="mode"
+                      value="high-quality"
+                      checked={selectedMode === "high-quality"}
+                      onChange={(e) => setSelectedMode(e.target.value)}
+                      className="w-4 h-4 text-blue-600 accent-blue-600"
+                    />
+                    <div className="font-semibold text-gray-900 text-sm">
+                      High Quality
+                    </div>
+                  </div>
+                  <div className="text-xs text-gray-500 leading-relaxed">
+                    Balance on best details available for most portraits and
+                    product photos.
+                  </div>
+                </label>
+
+                <label
+                  className={`flex-1 flex flex-col p-3 sm:p-4 border-2 rounded-xl cursor-pointer transition-all ${
+                    selectedMode === "fast"
+                      ? "border-blue-500 bg-blue-50"
+                      : "border-gray-200 hover:border-gray-300"
+                  }`}
+                >
+                  <div className="flex items-center gap-2 mb-2">
+                    <input
+                      type="radio"
+                      name="mode"
+                      value="fast"
+                      checked={selectedMode === "fast"}
+                      onChange={(e) => setSelectedMode(e.target.value)}
+                      className="w-4 h-4 text-blue-600 accent-blue-600"
+                    />
+                    <div className="font-semibold text-gray-900 text-sm">
+                      Fast Processing
+                    </div>
+                  </div>
+                  <div className="text-xs text-gray-500 leading-relaxed">
+                    Quick result, ideal for simple objects or solid color
+                    background.
+                  </div>
+                </label>
+              </div>
+            </div>
 
             {/* Example Images */}
             <div className="rounded-2xl p-4 sm:p-6">
