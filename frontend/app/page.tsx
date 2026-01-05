@@ -26,14 +26,16 @@ export default function RemoveBGApp() {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  // --- API FUNCTION ---
+  // --- API FUNCTION (INTEGRATED) ---
   const processImage = async (file: File) => {
     setIsProcessing(true);
     setErrorMessage(null);
     setProcessedImage(null);
 
     const formData = new FormData();
+    // 'image_file' ini kunci yang ditunggu oleh backend route.ts
     formData.append("image_file", file);
+    // Mengirim mode (backend bisa menggunakannya atau mengabaikannya)
     formData.append("mode", selectedMode);
 
     try {
@@ -42,14 +44,19 @@ export default function RemoveBGApp() {
         body: formData,
       });
 
-      if (!response.ok) throw new Error("Gagal memproses gambar.");
+      if (!response.ok) {
+        // Mencoba mengambil pesan error spesifik dari JSON backend
+        const errorData = await response.json().catch(() => null);
+        throw new Error(errorData?.error || "Gagal memproses gambar di server.");
+      }
 
+      // Mengubah response blob menjadi URL gambar untuk ditampilkan
       const blob = await response.blob();
       const url = URL.createObjectURL(blob);
       setProcessedImage(url);
-    } catch (err) {
+    } catch (err: any) {
       console.error(err);
-      setErrorMessage("Terjadi kesalahan saat menghapus background.");
+      setErrorMessage(err.message || "Terjadi kesalahan saat menghapus background.");
     } finally {
       setIsProcessing(false);
     }
@@ -100,11 +107,11 @@ export default function RemoveBGApp() {
 
   const validateFile = (file: File): string | null => {
     const allowedTypes = ["image/png", "image/jpeg", "image/webp"];
-    const maxSize = 100 * 1024 * 1024;
+    const maxSize = 12 * 1024 * 1024; // Update limit ke 12MB (limit umum API remove.bg)
     if (!allowedTypes.includes(file.type))
       return "Unsupported file format. Try again with a PNG, JPG, or WebP file.";
     if (file.size > maxSize)
-      return "File too large. Try again with maximum size 100 MB.";
+      return "File too large. Try again with maximum size 12 MB.";
     return null;
   };
 
