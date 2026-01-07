@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState, useRef, useEffect } from "react";
+import { useRouter } from "next/navigation";
 import Navbar from "./components/Header";
 import Footer from "./components/Footer";
 
@@ -26,6 +27,8 @@ export default function RemoveBGApp() {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
+  const router = useRouter();
+
   // --- API FUNCTION (INTEGRATED) ---
   const processImage = async (file: File) => {
     setIsProcessing(true);
@@ -47,7 +50,9 @@ export default function RemoveBGApp() {
       if (!response.ok) {
         // Mencoba mengambil pesan error spesifik dari JSON backend
         const errorData = await response.json().catch(() => null);
-        throw new Error(errorData?.error || "Gagal memproses gambar di server.");
+        throw new Error(
+          errorData?.error || "Gagal memproses gambar di server."
+        );
       }
 
       // Mengubah response blob menjadi URL gambar untuk ditampilkan
@@ -56,7 +61,9 @@ export default function RemoveBGApp() {
       setProcessedImage(url);
     } catch (err: any) {
       console.error(err);
-      setErrorMessage(err.message || "Terjadi kesalahan saat menghapus background.");
+      setErrorMessage(
+        err.message || "Terjadi kesalahan saat menghapus background."
+      );
     } finally {
       setIsProcessing(false);
     }
@@ -225,6 +232,40 @@ export default function RemoveBGApp() {
     }
   };
 
+  const handleEditClick = async () => {
+    if (!processedImage) return;
+
+    try {
+      // 1. Ambil data blob dari URL processedImage
+      const response = await fetch(processedImage);
+      const blob = await response.blob();
+
+      // 2. Convert Blob ke Base64 agar bisa disimpan di LocalStorage
+      const reader = new FileReader();
+      reader.readAsDataURL(blob);
+      reader.onloadend = () => {
+        const base64data = reader.result;
+
+        // 3. Simpan ke LocalStorage
+        // Kita pakai try-catch untuk handle jika gambar terlalu besar (LocalStorage limit biasanya 5-10MB)
+        try {
+          if (typeof base64data === "string") {
+            localStorage.setItem("editImage", base64data);
+            // 4. Pindah ke halaman edit
+            router.push("/edit");
+          }
+        } catch (e) {
+          alert(
+            "Gambar terlalu besar untuk diedit langsung. Coba unduh dan upload manual di halaman edit."
+          );
+          console.error("Storage error:", e);
+        }
+      };
+    } catch (err) {
+      console.error("Error prepping image for edit:", err);
+    }
+  };
+
   useEffect(() => {
     return () => {
       stopCamera();
@@ -382,12 +423,12 @@ export default function RemoveBGApp() {
                       >
                         Try Another
                       </button>
-                      <a
-                        href="/edit"
+                      <button
+                        onClick={handleEditClick}
                         className="bg-blue-300 text-white rounded-3xl px-6 py-2 text-sm font-medium hover:bg-[#0056A3] transition-colors"
                       >
                         Edit
-                      </a>
+                      </button>
                     </div>
                   </div>
                 ) : uploadedFile ? (
