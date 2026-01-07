@@ -3,6 +3,7 @@
 import React, { useState, useRef, useEffect, useCallback } from "react";
 import Cropper from "react-easy-crop";
 import getCroppedImg, { createImage } from "../../utils/cropImage";
+import { SketchPicker } from "react-color";
 
 import {
   Undo,
@@ -19,7 +20,8 @@ import {
   FlipHorizontal,
   FlipVertical,
   Download,
-  Loader2, // Import Loader2
+  Loader2,
+  Palette, 
 } from "lucide-react";
 
 import Navbar from "../../components/Header";
@@ -36,7 +38,7 @@ export default function CustomEditPage() {
   const [imageSrc, setImageSrc] = useState<string>(
     "https://images.unsplash.com/photo-1529139574466-a302c2d3e8a4?ixlib=rb-4.0.3&auto=format&fit=crop&w=600&q=80"
   );
-  const [isDownloading, setIsDownloading] = useState(false); // State baru untuk loading download
+  const [isDownloading, setIsDownloading] = useState(false);
 
   useEffect(() => {
     const savedImage = localStorage.getItem("editImage");
@@ -50,9 +52,14 @@ export default function CustomEditPage() {
     "transparent" | "color" | "scene" | "custom"
   >("transparent");
   const [selectedColor, setSelectedColor] = useState<string | null>(null);
+  
+  // 2. STATE BARU UNTUK POPUP COLOR PICKER
+  const [displayColorPicker, setDisplayColorPicker] = useState(false);
+
   const [selectedScene, setSelectedScene] = useState<string | null>(null);
   const [customBg, setCustomBg] = useState<string | null>(null);
   const [customBgName, setCustomBgName] = useState<string>("");
+  
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   // --- State Transform & Adjust ---
@@ -61,15 +68,14 @@ export default function CustomEditPage() {
   const [zoom, setZoom] = useState(1);
   const [aspect, setAspect] = useState<number | undefined>(undefined);
   const [croppedAreaPixels, setCroppedAreaPixels] = useState<Area | null>(null);
-  const [selectedRatioLabel, setSelectedRatioLabel] =
-    useState<string>("Custom");
+  const [selectedRatioLabel, setSelectedRatioLabel] = useState<string>("Custom");
   const [transform, setTransform] = useState({
     rotate: 0,
     flipHorizontal: false,
     flipVertical: false,
   });
 
-  // --- Helper: Draw Image Cover (Simulasi object-fit: cover di Canvas) ---
+  // --- Helper: Draw Image Cover ---
   const drawImageCover = (
     ctx: CanvasRenderingContext2D,
     img: HTMLImageElement,
@@ -96,17 +102,13 @@ export default function CustomEditPage() {
     ctx.drawImage(img, renderX, renderY, renderW, renderH);
   };
 
-  // --- FUNGSI DOWNLOAD (FITUR UTAMA) ---
+  // --- FUNGSI DOWNLOAD ---
   const handleDownload = async () => {
     if (!imageSrc) return;
     setIsDownloading(true);
 
     try {
-      // 1. Load Gambar Utama
       const mainImg = await createImage(imageSrc);
-
-      // 2. Siapkan Canvas
-      // Ukuran canvas mengikuti ukuran asli gambar utama agar kualitas tetap terjaga
       const canvas = document.createElement("canvas");
       canvas.width = mainImg.naturalWidth;
       canvas.height = mainImg.naturalHeight;
@@ -114,7 +116,6 @@ export default function CustomEditPage() {
 
       if (!ctx) throw new Error("Context not defined");
 
-      // 3. Gambar Background (Jika ada)
       if (bgType === "color" && selectedColor) {
         ctx.fillStyle = selectedColor;
         ctx.fillRect(0, 0, canvas.width, canvas.height);
@@ -125,26 +126,17 @@ export default function CustomEditPage() {
         const bgUrl = bgType === "scene" ? selectedScene : customBg;
         if (bgUrl) {
           const bgImg = await createImage(bgUrl);
-          // Gambar background dengan mode "Cover" (mengisi penuh canvas)
           drawImageCover(ctx, bgImg, 0, 0, canvas.width, canvas.height);
         }
       }
 
-      // 4. Gambar Subjek Utama + Transformasi (Rotate/Flip)
       ctx.save();
-      // Pindahkan titik pusat ke tengah canvas untuk rotasi yang benar
       ctx.translate(canvas.width / 2, canvas.height / 2);
-
-      // Terapkan Rotasi
       ctx.rotate((transform.rotate * Math.PI) / 180);
-
-      // Terapkan Flip (Scale negatif)
       ctx.scale(
         transform.flipHorizontal ? -1 : 1,
         transform.flipVertical ? -1 : 1
       );
-
-      // Gambar image di tengah (offset setengah width/height karena titik pusat sudah dipindah)
       ctx.drawImage(
         mainImg,
         -mainImg.naturalWidth / 2,
@@ -152,7 +144,6 @@ export default function CustomEditPage() {
       );
       ctx.restore();
 
-      // 5. Trigger Download
       const dataUrl = canvas.toDataURL("image/png", 1.0);
       const link = document.createElement("a");
       link.download = `edited-image-${Date.now()}.png`;
@@ -166,7 +157,7 @@ export default function CustomEditPage() {
     }
   };
 
-  // --- Handlers Lainnya (Sama seperti sebelumnya) ---
+  // --- Handlers ---
   const handleRotate = () =>
     setTransform((p) => ({ ...p, rotate: p.rotate + 90 }));
   const handleFlipHorizontal = () =>
@@ -209,6 +200,7 @@ export default function CustomEditPage() {
     setSelectedColor(c);
     setBgType("color");
   };
+
   const handleSceneSelect = (s: string) => {
     setSelectedScene(s);
     setBgType("scene");
@@ -276,7 +268,6 @@ export default function CustomEditPage() {
     }
   };
 
-  // Data Mockup
   const solidColors = [
     { id: "white", value: "#ffffff" },
     { id: "red", value: "#ff0000" },
@@ -286,6 +277,9 @@ export default function CustomEditPage() {
     { id: "purple", value: "#a855f7" },
     { id: "cyan", value: "#06b6d4" },
   ];
+  
+  const isCustomColorSelected = bgType === 'color' && selectedColor && !solidColors.some(c => c.value === selectedColor);
+
   const scenes = [
     "https://images.unsplash.com/photo-1558591710-4b4a1ae0f04d?auto=format&fit=crop&w=150&q=80",
     "https://images.unsplash.com/photo-1507525428034-b723cf961d3e?auto=format&fit=crop&w=150&q=80",
@@ -321,30 +315,19 @@ export default function CustomEditPage() {
 
       <main className="flex-grow flex flex-col items-center justify-center p-4 md:p-8 w-full max-w-[1400px] mx-auto relative z-10">
         <div className="w-full bg-white rounded-[24px] shadow-sm border border-slate-100 overflow-hidden mb-8 relative">
+          
           {/* Top Controls Toolbar */}
           <div className="px-6 py-4 border-b border-slate-100 flex items-center justify-between">
+            {/* ... (Konten Toolbar sama seperti sebelumnya) ... */}
             <div className="flex items-center gap-4 text-blue-500">
-              <button className="p-2 hover:bg-blue-50 rounded-full transition">
-                <Undo size={20} />
-              </button>
-              <button className="p-2 hover:bg-blue-50 rounded-full transition">
-                <Redo size={20} />
-              </button>
+              <button className="p-2 hover:bg-blue-50 rounded-full transition"><Undo size={20} /></button>
+              <button className="p-2 hover:bg-blue-50 rounded-full transition"><Redo size={20} /></button>
               <button
-                onClick={() =>
-                  setTransform({
-                    rotate: 0,
-                    flipHorizontal: false,
-                    flipVertical: false,
-                  })
-                }
+                onClick={() => setTransform({ rotate: 0, flipHorizontal: false, flipVertical: false })}
                 className="p-2 hover:bg-blue-50 rounded-full transition"
                 title="Reset Transform"
               >
-                <RotateCw
-                  size={20}
-                  className={transform.rotate !== 0 ? "text-blue-600" : ""}
-                />
+                <RotateCw size={20} className={transform.rotate !== 0 ? "text-blue-600" : ""} />
               </button>
             </div>
             <div className="flex items-center gap-3 md:gap-4">
@@ -352,27 +335,13 @@ export default function CustomEditPage() {
                 <span className="hidden sm:inline">Compare with Original</span>
                 <Lightbulb size={18} />
               </button>
-              <a
-                href="/edit"
-                className="px-6 py-2.5 rounded-full bg-blue-50 text-blue-600 font-semibold text-sm hover:bg-blue-100 transition"
-              >
-                Cancel
-              </a>
-              {/* Tombol Apply Changes sekarang memanggil Download juga atau logika save lainnya */}
+              <a href="/edit" className="px-6 py-2.5 rounded-full bg-blue-50 text-blue-600 font-semibold text-sm hover:bg-blue-100 transition">Cancel</a>
               <button
                 onClick={handleDownload}
                 disabled={isDownloading}
                 className="flex items-center gap-2 px-6 py-2.5 rounded-full bg-[#007CFF] text-white font-semibold text-sm hover:bg-blue-600 shadow-md shadow-blue-200 transition disabled:opacity-70 disabled:cursor-not-allowed"
               >
-                {isDownloading ? (
-                  <>
-                    Processing <Loader2 size={18} className="animate-spin" />
-                  </>
-                ) : (
-                  <>
-                    Apply & Download <Check size={18} />
-                  </>
-                )}
+                {isDownloading ? (<>Processing <Loader2 size={18} className="animate-spin" /></>) : (<>Apply & Download <Check size={18} /></>)}
               </button>
             </div>
           </div>
@@ -381,32 +350,16 @@ export default function CustomEditPage() {
           <div className="flex flex-col lg:flex-row h-auto lg:h-[600px]">
             {/* CANVAS AREA (LEFT) */}
             <div className="flex-grow bg-slate-50 relative flex items-center justify-center p-8 overflow-hidden">
-              <div
-                className="absolute inset-0 z-0"
-                style={{
-                  backgroundImage: `linear-gradient(45deg, #e5e7eb 25%, transparent 25%), linear-gradient(-45deg, #e5e7eb 25%, transparent 25%), linear-gradient(45deg, transparent 75%, #e5e7eb 75%), linear-gradient(-45deg, transparent 75%, #e5e7eb 75%)`,
-                  backgroundSize: "24px 24px",
-                  backgroundPosition: "0 0, 0 12px, 12px -12px, -12px 0px",
-                  backgroundColor: "white",
-                }}
-              ></div>
-              <div
-                className="absolute inset-0 z-1 transition-all duration-300 ease-in-out"
-                style={getCanvasStyle()}
-              ></div>
-
-              <div className="relative z-20 w-full h-full flex items-center justify-center">
+               {/* ... (Canvas Area sama) ... */}
+               <div className="absolute inset-0 z-0" style={{ backgroundImage: `linear-gradient(45deg, #e5e7eb 25%, transparent 25%), linear-gradient(-45deg, #e5e7eb 25%, transparent 25%), linear-gradient(45deg, transparent 75%, #e5e7eb 75%), linear-gradient(-45deg, transparent 75%, #e5e7eb 75%)`, backgroundSize: "24px 24px", backgroundPosition: "0 0, 0 12px, 12px -12px, -12px 0px", backgroundColor: "white" }}></div>
+               <div className="absolute inset-0 z-1 transition-all duration-300 ease-in-out" style={getCanvasStyle()}></div>
+               <div className="relative z-20 w-full h-full flex items-center justify-center">
                 <img src={imageSrc} alt="Subject" style={getImageStyle()} />
-              </div>
-
-              <div className="absolute bottom-6 right-6 flex flex-col bg-white rounded-lg shadow-lg border border-slate-100 z-30">
-                <button className="p-2.5 hover:bg-slate-50 text-slate-600 border-b border-slate-100 transition">
-                  <Plus size={20} />
-                </button>
-                <button className="p-2.5 hover:bg-slate-50 text-slate-600 transition">
-                  <Minus size={20} />
-                </button>
-              </div>
+               </div>
+               <div className="absolute bottom-6 right-6 flex flex-col bg-white rounded-lg shadow-lg border border-slate-100 z-30">
+                <button className="p-2.5 hover:bg-slate-50 text-slate-600 border-b border-slate-100 transition"><Plus size={20} /></button>
+                <button className="p-2.5 hover:bg-slate-50 text-slate-600 transition"><Minus size={20} /></button>
+               </div>
             </div>
 
             {/* SIDEBAR TOOLS (RIGHT) */}
@@ -420,10 +373,7 @@ export default function CustomEditPage() {
                       : "text-slate-500"
                   }`}
                 >
-                  Background{" "}
-                  {activeTab === "background" && (
-                    <span className="absolute bottom-0 left-0 w-full h-0.5 bg-[#007CFF]"></span>
-                  )}
+                  Background {activeTab === "background" && <span className="absolute bottom-0 left-0 w-full h-0.5 bg-[#007CFF]"></span>}
                 </button>
                 <button
                   onClick={() => setActiveTab("adjust")}
@@ -431,10 +381,7 @@ export default function CustomEditPage() {
                     activeTab === "adjust" ? "text-[#007CFF]" : "text-slate-500"
                   }`}
                 >
-                  Adjust{" "}
-                  {activeTab === "adjust" && (
-                    <span className="absolute bottom-0 left-0 w-full h-0.5 bg-[#007CFF]"></span>
-                  )}
+                  Adjust {activeTab === "adjust" && <span className="absolute bottom-0 left-0 w-full h-0.5 bg-[#007CFF]"></span>}
                 </button>
               </div>
 
@@ -460,45 +407,23 @@ export default function CustomEditPage() {
                           onClick={handleFileClick}
                           className="border-2 border-dashed border-sky-300 bg-sky-50 rounded-xl p-8 flex flex-col items-center justify-center text-center gap-3 transition hover:bg-sky-100 cursor-pointer group"
                         >
-                          <p className="text-slate-600 text-sm">
-                            Drag and drop your background image here <br /> or
-                          </p>
+                          <p className="text-slate-600 text-sm">Drag and drop your background image here <br /> or</p>
                           <button className="flex items-center gap-2 bg-[#dbebfa] text-[#007CFF] px-4 py-2 rounded-full text-xs font-bold group-hover:bg-blue-200 transition">
-                            <div className="bg-[#007CFF] text-white rounded-full p-0.5">
-                              <CloudUpload size={12} />
-                            </div>{" "}
-                            Browse Image
+                            <div className="bg-[#007CFF] text-white rounded-full p-0.5"><CloudUpload size={12} /></div> Browse Image
                           </button>
                         </div>
                       ) : (
                         <div className="flex items-start gap-4 animate-fadeIn">
                           <div
-                            className={`relative w-20 h-20 rounded-xl overflow-hidden border-2 cursor-pointer ${
-                              bgType === "custom"
-                                ? "border-[#007CFF] ring-2 ring-blue-100"
-                                : "border-slate-200"
-                            }`}
+                            className={`relative w-20 h-20 rounded-xl overflow-hidden border-2 cursor-pointer ${bgType === "custom" ? "border-[#007CFF] ring-2 ring-blue-100" : "border-slate-200"}`}
                             onClick={() => setBgType("custom")}
                           >
-                            <img
-                              src={customBg}
-                              alt="Custom upload"
-                              className="w-full h-full object-cover"
-                            />
-                            <button
-                              onClick={handleRemoveCustomBg}
-                              className="absolute top-1 right-1 bg-black/50 hover:bg-red-500 text-white rounded-full p-0.5 transition"
-                            >
-                              <X size={12} />
-                            </button>
+                            <img src={customBg} alt="Custom upload" className="w-full h-full object-cover" />
+                            <button onClick={handleRemoveCustomBg} className="absolute top-1 right-1 bg-black/50 hover:bg-red-500 text-white rounded-full p-0.5 transition"><X size={12} /></button>
                           </div>
                           <div className="flex-1 pt-1">
-                            <p className="text-sm font-semibold text-slate-700 truncate">
-                              {customBgName}
-                            </p>
-                            <p className="text-xs text-slate-400">
-                              Custom background applied
-                            </p>
+                            <p className="text-sm font-semibold text-slate-700 truncate">{customBgName}</p>
+                            <p className="text-xs text-slate-400">Custom background applied</p>
                           </div>
                         </div>
                       )}
@@ -506,84 +431,78 @@ export default function CustomEditPage() {
 
                     {/* Color Section */}
                     <div className="space-y-3 animate-fadeIn">
-                      <h3 className="text-xs font-semibold text-slate-500 uppercase tracking-wide">
-                        Color
-                      </h3>
-                      <div className="flex flex-wrap gap-3">
+                      <h3 className="text-xs font-semibold text-slate-500 uppercase tracking-wide">Color</h3>
+
+                      <div className="flex flex-wrap gap-3 relative">
+                        {/* Tombol Transparan */}
                         <button
-                          onClick={() => {
-                            setSelectedColor(null);
-                            setBgType("transparent");
-                          }}
-                          className={`w-10 h-10 rounded-full border border-slate-200 bg-white hover:scale-105 transition flex items-center justify-center ${
-                            bgType === "transparent"
-                              ? "ring-2 ring-blue-500 ring-offset-2"
-                              : ""
-                          }`}
+                          onClick={() => { setSelectedColor(null); setBgType("transparent"); }}
+                          className={`w-10 h-10 rounded-full border border-slate-200 bg-white hover:scale-105 transition flex items-center justify-center ${bgType === "transparent" ? "ring-2 ring-blue-500 ring-offset-2" : ""}`}
                         >
-                          <span className="text-red-500 transform -rotate-45 text-xl">
-                            /
-                          </span>
+                          <span className="text-red-500 transform -rotate-45 text-xl">/</span>
                         </button>
+                        
+                        {/* Preset Colors */}
                         {solidColors.map((color) => (
                           <button
                             key={color.id}
                             onClick={() => handleColorSelect(color.value)}
                             style={{ backgroundColor: color.value }}
-                            className={`w-10 h-10 rounded-full shadow-sm hover:scale-105 transition border border-black/5 ${
-                              bgType === "color" &&
-                              selectedColor === color.value
-                                ? "ring-2 ring-blue-500 ring-offset-2"
-                                : ""
-                            }`}
+                            className={`w-10 h-10 rounded-full shadow-sm hover:scale-105 transition border border-black/5 ${bgType === "color" && selectedColor === color.value ? "ring-2 ring-blue-500 ring-offset-2" : ""}`}
                           >
-                            {bgType === "color" &&
-                              selectedColor === color.value && (
-                                <Check
-                                  size={16}
-                                  className="text-white mx-auto drop-shadow-md"
-                                />
-                              )}
+                            {bgType === "color" && selectedColor === color.value && (<Check size={16} className="text-white mx-auto drop-shadow-md" />)}
                           </button>
                         ))}
-                        <button className="w-10 h-10 rounded-full shadow-sm hover:scale-105 transition border border-slate-200 relative overflow-hidden">
-                          <div
-                            className="absolute inset-0"
-                            style={{
-                              background:
-                                "conic-gradient(from 180deg at 50% 50%, #FF0000 0deg, #FFFF00 60deg, #00FF00 120deg, #00FFFF 180deg, #0000FF 240deg, #FF00FF 300deg, #FF0000 360deg)",
-                            }}
-                          ></div>
-                        </button>
+                        
+                        {/* 3. TOMBOL CUSTOM COLOR (TRIGGER) */}
+                        <div className="relative">
+                            <button 
+                                onClick={() => setDisplayColorPicker(!displayColorPicker)}
+                                className={`w-10 h-10 rounded-full shadow-sm hover:scale-105 transition border border-slate-200 relative overflow-hidden flex items-center justify-center
+                                    ${isCustomColorSelected ? 'ring-2 ring-blue-500 ring-offset-2' : ''}
+                                `}
+                            >
+                              <div className="absolute inset-0" style={{ background: "conic-gradient(from 180deg at 50% 50%, #FF0000 0deg, #FFFF00 60deg, #00FF00 120deg, #00FFFF 180deg, #0000FF 240deg, #FF00FF 300deg, #FF0000 360deg)" }}></div>
+                              {isCustomColorSelected && <Check size={16} className="text-white relative z-10 drop-shadow-md" />}
+                            </button>
+
+                            {/* 4. POP-UP COLOR PICKER */}
+                            {displayColorPicker && (
+                              <div className="absolute z-50 bottom-14 left-0 -ml-10 sm:ml-0">
+                                {/* Cover untuk menutup popup saat klik di luar */}
+                                <div
+                                  className="fixed inset-0"
+                                  onClick={() => setDisplayColorPicker(false)}
+                                />
+                                <div className="relative shadow-2xl rounded-lg">
+                                    <SketchPicker
+                                      color={selectedColor || '#fff'}
+                                      onChange={(color) => {
+                                         setSelectedColor(color.hex);
+                                         setBgType('color');
+                                      }}
+                                    />
+                                </div>
+                              </div>
+                            )}
+                        </div>
                       </div>
                     </div>
 
                     {/* Scene Section */}
                     <div className="space-y-3 animate-fadeIn">
-                      <h3 className="text-xs font-semibold text-slate-500 uppercase tracking-wide">
-                        Pattern and Scenes
-                      </h3>
+                      <h3 className="text-xs font-semibold text-slate-500 uppercase tracking-wide">Pattern and Scenes</h3>
                       <div className="flex gap-3 overflow-x-auto pb-2 scrollbar-hide">
                         {scenes.map((src, i) => (
                           <button
                             key={i}
                             onClick={() => handleSceneSelect(src)}
-                            className={`flex-shrink-0 w-20 h-20 rounded-xl overflow-hidden border transition relative ${
-                              bgType === "scene" && selectedScene === src
-                                ? "ring-2 ring-blue-500 border-transparent"
-                                : "border-slate-200 hover:ring-2 ring-blue-200"
-                            }`}
+                            className={`flex-shrink-0 w-20 h-20 rounded-xl overflow-hidden border transition relative ${bgType === "scene" && selectedScene === src ? "ring-2 ring-blue-500 border-transparent" : "border-slate-200 hover:ring-2 ring-blue-200"}`}
                           >
-                            <img
-                              src={src}
-                              alt="scene"
-                              className="w-full h-full object-cover"
-                            />
+                            <img src={src} alt="scene" className="w-full h-full object-cover" />
                             {bgType === "scene" && selectedScene === src && (
                               <div className="absolute inset-0 bg-black/10 flex items-center justify-center">
-                                <div className="bg-white rounded-full p-0.5 text-blue-600">
-                                  <Check size={14} />
-                                </div>
+                                <div className="bg-white rounded-full p-0.5 text-blue-600"><Check size={14} /></div>
                               </div>
                             )}
                           </button>
@@ -596,64 +515,33 @@ export default function CustomEditPage() {
                 {/* --- KONTEN TAB ADJUST --- */}
                 {activeTab === "adjust" && (
                   <>
-                    <div className="space-y-3 animate-fadeIn">
-                      <h3 className="text-xs font-semibold text-slate-500 uppercase tracking-wide">
-                        Aspect Ratio
-                      </h3>
+                     {/* ... (Konten Adjust sama) ... */}
+                     <div className="space-y-3 animate-fadeIn">
+                      <h3 className="text-xs font-semibold text-slate-500 uppercase tracking-wide">Aspect Ratio</h3>
                       <div className="grid grid-cols-3 gap-3">
                         {ratios.map((ratio) => (
                           <button
                             key={ratio.label}
-                            onClick={() =>
-                              startCropping(ratio.value, ratio.label)
-                            }
+                            onClick={() => startCropping(ratio.value, ratio.label)}
                             className="flex flex-col items-center justify-center gap-2 py-4 border border-slate-200 rounded-xl hover:border-blue-500 hover:bg-blue-50 text-slate-600 hover:text-blue-600 transition"
                           >
                             {ratio.icon}
-                            <span className="text-xs font-medium">
-                              {ratio.label}
-                            </span>
+                            <span className="text-xs font-medium">{ratio.label}</span>
                           </button>
                         ))}
                       </div>
                     </div>
                     <div className="space-y-3 animate-fadeIn">
-                      <h3 className="text-xs font-semibold text-slate-500 uppercase tracking-wide">
-                        Transform
-                      </h3>
+                      <h3 className="text-xs font-semibold text-slate-500 uppercase tracking-wide">Transform</h3>
                       <div className="grid grid-cols-3 gap-3">
-                        <button
-                          onClick={handleRotate}
-                          className={`flex flex-col items-center justify-center gap-2 py-4 border rounded-xl transition ${
-                            transform.rotate !== 0
-                              ? "border-blue-500 bg-blue-50 text-blue-600"
-                              : "border-slate-200 text-slate-600 hover:border-blue-500 hover:bg-blue-50"
-                          }`}
-                        >
-                          <RotateCw size={18} />{" "}
-                          <span className="text-xs font-medium">Rotate</span>
+                        <button onClick={handleRotate} className={`flex flex-col items-center justify-center gap-2 py-4 border rounded-xl transition ${transform.rotate !== 0 ? "border-blue-500 bg-blue-50 text-blue-600" : "border-slate-200 text-slate-600 hover:border-blue-500 hover:bg-blue-50"}`}>
+                          <RotateCw size={18} /> <span className="text-xs font-medium">Rotate</span>
                         </button>
-                        <button
-                          onClick={handleFlipVertical}
-                          className={`flex flex-col items-center justify-center gap-2 py-4 border rounded-xl transition ${
-                            transform.flipVertical
-                              ? "border-blue-500 bg-blue-50 text-blue-600"
-                              : "border-slate-200 text-slate-600 hover:border-blue-500 hover:bg-blue-50"
-                          }`}
-                        >
-                          <FlipHorizontal size={18} className="rotate-90" />{" "}
-                          <span className="text-xs font-medium">Flip V</span>
+                        <button onClick={handleFlipVertical} className={`flex flex-col items-center justify-center gap-2 py-4 border rounded-xl transition ${transform.flipVertical ? "border-blue-500 bg-blue-50 text-blue-600" : "border-slate-200 text-slate-600 hover:border-blue-500 hover:bg-blue-50"}`}>
+                          <FlipHorizontal size={18} className="rotate-90" /> <span className="text-xs font-medium">Flip V</span>
                         </button>
-                        <button
-                          onClick={handleFlipHorizontal}
-                          className={`flex flex-col items-center justify-center gap-2 py-4 border rounded-xl transition ${
-                            transform.flipHorizontal
-                              ? "border-blue-500 bg-blue-50 text-blue-600"
-                              : "border-slate-200 text-slate-600 hover:border-blue-500 hover:bg-blue-50"
-                          }`}
-                        >
-                          <FlipHorizontal size={18} />{" "}
-                          <span className="text-xs font-medium">Flip H</span>
+                        <button onClick={handleFlipHorizontal} className={`flex flex-col items-center justify-center gap-2 py-4 border rounded-xl transition ${transform.flipHorizontal ? "border-blue-500 bg-blue-50 text-blue-600" : "border-slate-200 text-slate-600 hover:border-blue-500 hover:bg-blue-50"}`}>
+                          <FlipHorizontal size={18} /> <span className="text-xs font-medium">Flip H</span>
                         </button>
                       </div>
                     </div>
@@ -666,31 +554,18 @@ export default function CustomEditPage() {
 
         {/* Bottom Actions */}
         <div className="flex flex-wrap items-center justify-center md:justify-end gap-3 w-full">
-          <a href="/" className="flex items-center gap-2 px-6 py-3 rounded-full border border-slate-300 text-slate-600 font-semibold hover:bg-slate-50 transition bg-white">
+           {/* ... (Bottom Actions sama) ... */}
+           <a href="/" className="flex items-center gap-2 px-6 py-3 rounded-full border border-slate-300 text-slate-600 font-semibold hover:bg-slate-50 transition bg-white">
             <RotateCw size={18} /> Retake Photo
           </a>
           <label className="flex items-center gap-2 px-6 py-3 rounded-full border border-slate-300 text-slate-600 font-semibold hover:bg-slate-50 transition bg-white cursor-pointer">
             <CloudUpload size={18} /> Upload New
-            <input
-              type="file"
-              className="hidden"
-              accept="image/*"
-              onChange={handleUploadNewMain}
-            />
+            <input type="file" className="hidden" accept="image/*" onChange={handleUploadNewMain} />
           </label>
-
           <div className="relative">
-            <button
-              onClick={handleDownload}
-              disabled={isDownloading}
-              className="flex items-center gap-3 px-8 py-3 rounded-full bg-[#8B93A6] text-white font-semibold hover:bg-slate-600 shadow-md transition disabled:opacity-70 disabled:cursor-not-allowed"
-            >
+            <button onClick={handleDownload} disabled={isDownloading} className="flex items-center gap-3 px-8 py-3 rounded-full bg-[#8B93A6] text-white font-semibold hover:bg-slate-600 shadow-md transition disabled:opacity-70 disabled:cursor-not-allowed">
               {isDownloading ? "Downloading..." : "Download"}
-              {!isDownloading && (
-                <div className="border-l border-white/30 pl-3">
-                  <ChevronDown size={18} />
-                </div>
-              )}
+              {!isDownloading && (<div className="border-l border-white/30 pl-3"><ChevronDown size={18} /></div>)}
             </button>
           </div>
         </div>
@@ -701,7 +576,8 @@ export default function CustomEditPage() {
       {/* --- CROPPING MODAL OVERLAY --- */}
       {isCropping && (
         <div className="fixed inset-0 z-50 bg-black/90 backdrop-blur-sm flex flex-col items-center justify-center animate-fadeIn">
-          <div className="relative w-full max-w-4xl h-[60vh] bg-black flex items-center justify-center overflow-hidden rounded-lg">
+          {/* ... (Cropping Modal sama) ... */}
+           <div className="relative w-full max-w-4xl h-[60vh] bg-transparent flex items-center justify-center overflow-hidden rounded-lg">
             <Cropper
               image={imageSrc}
               crop={crop}
@@ -711,51 +587,22 @@ export default function CustomEditPage() {
               onCropComplete={onCropComplete}
               onZoomChange={setZoom}
               rotation={transform.rotate}
-              mediaProps={{
-                style: {
-                  transform: `scale(${transform.flipHorizontal ? -1 : 1}, ${
-                    transform.flipVertical ? -1 : 1
-                  })`,
-                },
-              }}
-              style={{
-                containerStyle: {
-                  background: bgType === "transparent" ? "transparent" : "#000",
-                },
-              }}
+              mediaProps={{ style: { transform: `scale(${transform.flipHorizontal ? -1 : 1}, ${transform.flipVertical ? -1 : 1})` } }}
+              style={{ containerStyle: { background: "transparent" } }}
             />
           </div>
-          {/* Control Bar Crop (Simplified) */}
           <div className="mt-6 w-full max-w-2xl px-4 flex flex-col gap-4">
             <div className="flex items-center gap-4 text-white">
-              <span className="text-xs uppercase font-bold text-gray-400">
-                Zoom
-              </span>
-              <input
-                type="range"
-                value={zoom}
-                min={1}
-                max={3}
-                step={0.1}
-                onChange={(e) => setZoom(Number(e.target.value))}
-                className="flex-grow h-1 bg-gray-600 rounded-lg appearance-none cursor-pointer accent-blue-500"
-              />
+              <span className="text-xs uppercase font-bold text-gray-400">Zoom</span>
+              <input type="range" value={zoom} min={1} max={3} step={0.1} onChange={(e) => setZoom(Number(e.target.value))} className="flex-grow h-1 bg-gray-600 rounded-lg appearance-none cursor-pointer accent-blue-500" />
             </div>
             <div className="flex justify-center">
-              <button
-                onClick={applyCrop}
-                className="flex items-center gap-2 px-6 py-2.5 rounded-full bg-[#007CFF] text-white font-semibold text-sm hover:bg-blue-600 shadow-md shadow-blue-500/30 transition"
-              >
+              <button onClick={applyCrop} className="flex items-center gap-2 px-6 py-2.5 rounded-full bg-[#007CFF] text-white font-semibold text-sm hover:bg-blue-600 shadow-md shadow-blue-500/30 transition">
                 Apply Crop <Check size={18} />
               </button>
             </div>
           </div>
-          <button
-            onClick={() => setIsCropping(false)}
-            className="absolute top-6 right-6 text-white/70 hover:text-white bg-white/10 hover:bg-white/20 p-2 rounded-full transition z-50"
-          >
-            <X size={24} />
-          </button>
+          <button onClick={() => setIsCropping(false)} className="absolute top-6 right-6 text-white/70 hover:text-white bg-white/10 hover:bg-white/20 p-2 rounded-full transition z-50"><X size={24} /></button>
         </div>
       )}
     </div>
