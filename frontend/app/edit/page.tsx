@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react'; // Tambahkan useEffect
 import Image from 'next/image';
 import { 
   ChevronDown, 
@@ -18,10 +18,37 @@ import Footer from '../components/Footer';
 export default function EditPage() {
   const [scale, setScale] = useState(1);
   const [selectedColor, setSelectedColor] = useState<string | null>(null);
+  
+  // --- STATE BARU UNTUK GAMBAR ---
+  const [imageSrc, setImageSrc] = useState<string | null>(null);
+
+  // --- EFEK UNTUK LOAD GAMBAR DARI HALAMAN SEBELUMNYA ---
+  useEffect(() => {
+    // Cek apakah ada gambar yang dikirim dari halaman remove bg
+    const savedImage = localStorage.getItem("editImage");
+    
+    if (savedImage) {
+      setImageSrc(savedImage);
+    } else {
+      // Jika tidak ada data (user masuk langsung ke link /edit), pakai placeholder default
+      setImageSrc("https://images.unsplash.com/photo-1529139574466-a302c2d3e8a4?ixlib=rb-4.0.3&auto=format&fit=crop&w=600&q=80");
+    }
+  }, []);
 
   // Fungsi Zoom
   const handleZoomIn = () => setScale((prev) => Math.min(prev + 0.1, 2));
   const handleZoomOut = () => setScale((prev) => Math.max(prev - 0.1, 0.5));
+
+  // Fungsi Upload Baru di halaman edit
+  const handleUploadNew = (e: React.ChangeEvent<HTMLInputElement>) => {
+     const file = e.target.files?.[0];
+     if (file) {
+        const url = URL.createObjectURL(file);
+        setImageSrc(url);
+        // Reset local storage agar tidak menimpa upload baru saat refresh
+        localStorage.removeItem("editImage"); 
+     }
+  }
 
   // Opsi Background Color
   const colors = [
@@ -29,6 +56,8 @@ export default function EditPage() {
     { id: 'red', value: '#ff0000', label: 'Merah' },
     { id: 'blue', value: '#0000ff', label: 'Biru' },
     { id: 'green', value: '#00ff00', label: 'Hijau' },
+    // Tambah warna putih agar mudah terlihat perubahannya
+    { id: 'white', value: '#ffffff', label: 'Putih' },
   ];
 
   return (
@@ -55,12 +84,11 @@ export default function EditPage() {
                     onClick={() => setSelectedColor(color.value)}
                     className={`w-8 h-8 rounded-full border border-gray-200 shadow-sm transition-all hover:scale-110 focus:ring-2 ring-offset-1 ring-blue-500
                       ${selectedColor === color.value ? 'ring-2 ring-blue-500 scale-110' : ''}
-                      ${color.id === 'transparent' ? 'bg-white' : ''}
+                      ${color.id === 'transparent' ? 'bg-gray-100 bg-[url("/asset/transparent-grid.png")]' : ''}
                     `}
-                    style={{ backgroundColor: color.value || 'white' }}
+                    style={{ backgroundColor: color.value || 'transparent' }}
                     aria-label={color.label}
                   >
-                    {/* Icon silang untuk transparan jika needed, atau biarkan kosong */}
                   </button>
                 ))}
               </div>
@@ -72,10 +100,10 @@ export default function EditPage() {
                 <Lightbulb size={18} />
                 <span className="hidden sm:inline">Compare with Original</span>
               </button>
-              <button className="flex items-center gap-2 bg-blue-50 text-blue-600 px-4 py-2 rounded-full hover:bg-blue-100 transition">
-                <a href="/edit/custom-edit" className="hidden sm:inline">Custom Edit</a>
+              <a href='/edit/custom-edit' className="flex items-center gap-2 bg-blue-50 text-blue-600 px-4 py-2 rounded-full hover:bg-blue-100 transition">
+                <span className="hidden sm:inline">Custom Edit</span>
                 <PenLine size={16} />
-              </button>
+              </a>
             </div>
           </div>
 
@@ -95,25 +123,28 @@ export default function EditPage() {
 
             {/* Main Image Container */}
             <div 
-              className="relative transition-transform duration-200 ease-out z-10"
+              className="relative transition-transform duration-200 ease-out z-10 w-full h-full flex items-center justify-center"
               style={{ transform: `scale(${scale})` }}
             >
               {/* Layer Warna (jika dipilih) */}
               {selectedColor && (
                 <div 
-                  className="absolute inset-0 z-0 transition-colors duration-300"
+                  className="absolute inset-0 z-0 transition-colors duration-300 w-full h-full"
                   style={{ backgroundColor: selectedColor }}
                 />
               )}
               
-              {/* Gambar Utama (Ganti src dengan gambar Anda) */}
-              <div className="relative z-10">
-                 {/* Placeholder Image - Ganti dengan <Image /> Next.js yang asli */}
-                 <img 
-                   src="https://images.unsplash.com/photo-1529139574466-a302c2d3e8a4?ixlib=rb-4.0.3&auto=format&fit=crop&w=600&q=80" 
-                   alt="Edited Result" 
-                   className="h-[400px] w-auto object-contain drop-shadow-lg"
-                 />
+              {/* Gambar Utama (Dynamic Source) */}
+              <div className="relative z-10 max-w-[90%] max-h-[90%]">
+                 {imageSrc ? (
+                    <img 
+                      src={imageSrc} 
+                      alt="Edited Result" 
+                      className="max-h-[400px] w-auto object-contain drop-shadow-lg mx-auto"
+                    />
+                 ) : (
+                    <div className="text-gray-400">Loading image...</div>
+                 )}
               </div>
             </div>
 
@@ -131,14 +162,21 @@ export default function EditPage() {
 
         {/* Action Buttons Footer */}
         <div className="flex flex-wrap gap-4 justify-center md:justify-end w-full">
-          <button className="flex items-center gap-2 px-6 py-3 rounded-full border border-blue-500 text-blue-600 font-semibold hover:bg-blue-50 transition">
+          <button 
+            onClick={() => setImageSrc(null)} // Atau logika reset lainnya
+            className="flex items-center gap-2 px-6 py-3 rounded-full border border-blue-500 text-blue-600 font-semibold hover:bg-blue-50 transition"
+          >
             <RotateCcw size={18} />
-            Retake Photo
+            Retake / Clear
           </button>
-          <button className="flex items-center gap-2 px-6 py-3 rounded-full border border-blue-500 text-blue-600 font-semibold hover:bg-blue-50 transition">
+          
+          {/* Tombol Upload New - Diubah jadi label agar bisa trigger input file */}
+          <label className="flex items-center gap-2 px-6 py-3 rounded-full border border-blue-500 text-blue-600 font-semibold hover:bg-blue-50 transition cursor-pointer">
             <Upload size={18} />
             Upload New
-          </button>
+            <input type="file" className="hidden" accept="image/*" onChange={handleUploadNew} />
+          </label>
+
           <div className="relative group">
             <button className="flex items-center gap-2 px-8 py-3 rounded-full bg-blue-600 text-white font-semibold hover:bg-blue-700 shadow-md shadow-blue-200 transition">
               Download
