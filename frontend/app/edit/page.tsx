@@ -1,7 +1,6 @@
 'use client';
 
-import React, { useState, useEffect } from 'react'; // Tambahkan useEffect
-import Image from 'next/image';
+import React, { useState, useEffect } from 'react';
 import { 
   ChevronDown, 
   Lightbulb, 
@@ -10,7 +9,8 @@ import {
   Minus, 
   RotateCcw, 
   Upload, 
-  Download 
+  Download,
+  Loader2 // Import icon loader untuk indikator download
 } from 'lucide-react';
 import Navbar from '../components/Header';
 import Footer from '../components/Footer';
@@ -18,19 +18,15 @@ import Footer from '../components/Footer';
 export default function EditPage() {
   const [scale, setScale] = useState(1);
   const [selectedColor, setSelectedColor] = useState<string | null>(null);
-  
-  // --- STATE BARU UNTUK GAMBAR ---
   const [imageSrc, setImageSrc] = useState<string | null>(null);
+  const [isDownloading, setIsDownloading] = useState(false); // State untuk loading download
 
   // --- EFEK UNTUK LOAD GAMBAR DARI HALAMAN SEBELUMNYA ---
   useEffect(() => {
-    // Cek apakah ada gambar yang dikirim dari halaman remove bg
     const savedImage = localStorage.getItem("editImage");
-    
     if (savedImage) {
       setImageSrc(savedImage);
     } else {
-      // Jika tidak ada data (user masuk langsung ke link /edit), pakai placeholder default
       setImageSrc("https://images.unsplash.com/photo-1529139574466-a302c2d3e8a4?ixlib=rb-4.0.3&auto=format&fit=crop&w=600&q=80");
     }
   }, []);
@@ -39,16 +35,67 @@ export default function EditPage() {
   const handleZoomIn = () => setScale((prev) => Math.min(prev + 0.1, 2));
   const handleZoomOut = () => setScale((prev) => Math.max(prev - 0.1, 0.5));
 
-  // Fungsi Upload Baru di halaman edit
+  // Fungsi Upload Baru
   const handleUploadNew = (e: React.ChangeEvent<HTMLInputElement>) => {
      const file = e.target.files?.[0];
      if (file) {
         const url = URL.createObjectURL(file);
         setImageSrc(url);
-        // Reset local storage agar tidak menimpa upload baru saat refresh
         localStorage.removeItem("editImage"); 
      }
   }
+
+  // --- LOGIKA DOWNLOAD (CANVAS) ---
+  const handleDownload = async () => {
+    if (!imageSrc) return;
+    setIsDownloading(true);
+
+    try {
+        // 1. Buat Image Object baru untuk dimuat ke Canvas
+        const img = new Image();
+        img.crossOrigin = "anonymous"; // Penting untuk menghindari CORS error jika gambar dari external
+        img.src = imageSrc;
+
+        await new Promise((resolve, reject) => {
+            img.onload = resolve;
+            img.onerror = reject;
+        });
+
+        // 2. Siapkan Canvas sesuai ukuran asli gambar
+        const canvas = document.createElement('canvas');
+        canvas.width = img.naturalWidth;
+        canvas.height = img.naturalHeight;
+        const ctx = canvas.getContext('2d');
+
+        if (!ctx) throw new Error("Gagal membuat context canvas");
+
+        // 3. Gambar Background Color (Jika user memilih warna)
+        if (selectedColor) {
+            ctx.fillStyle = selectedColor;
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+        }
+
+        // 4. Gambar Image Utama di atas background
+        ctx.drawImage(img, 0, 0);
+
+        // 5. Convert ke URL dan Download
+        const dataUrl = canvas.toDataURL('image/png');
+        
+        // Buat elemen link sementara untuk trigger download
+        const link = document.createElement('a');
+        link.download = `edited-image-${Date.now()}.png`;
+        link.href = dataUrl;
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+
+    } catch (error) {
+        console.error("Gagal mendownload gambar:", error);
+        alert("Terjadi kesalahan saat mendownload gambar. Pastikan gambar valid.");
+    } finally {
+        setIsDownloading(false);
+    }
+  };
 
   // Opsi Background Color
   const colors = [
@@ -56,7 +103,6 @@ export default function EditPage() {
     { id: 'red', value: '#ff0000', label: 'Merah' },
     { id: 'blue', value: '#0000ff', label: 'Biru' },
     { id: 'green', value: '#00ff00', label: 'Hijau' },
-    // Tambah warna putih agar mudah terlihat perubahannya
     { id: 'white', value: '#ffffff', label: 'Putih' },
   ];
 
@@ -109,7 +155,7 @@ export default function EditPage() {
 
           {/* Canvas Area */}
           <div className="relative w-full h-[500px] bg-gray-100 overflow-hidden flex items-center justify-center">
-            {/* Checkerboard Pattern Background (CSS Pattern) */}
+            {/* Checkerboard Pattern Background */}
             <div className="absolute inset-0 opacity-40 pointer-events-none" 
                  style={{
                    backgroundImage: `linear-gradient(45deg, #ccc 25%, transparent 25%), 
@@ -134,7 +180,7 @@ export default function EditPage() {
                 />
               )}
               
-              {/* Gambar Utama (Dynamic Source) */}
+              {/* Gambar Utama */}
               <div className="relative z-10 max-w-[90%] max-h-[90%]">
                  {imageSrc ? (
                     <img 
@@ -163,14 +209,13 @@ export default function EditPage() {
         {/* Action Buttons Footer */}
         <div className="flex flex-wrap gap-4 justify-center md:justify-end w-full">
           <button 
-            onClick={() => setImageSrc(null)} // Atau logika reset lainnya
+            onClick={() => setImageSrc(null)} 
             className="flex items-center gap-2 px-6 py-3 rounded-full border border-blue-500 text-blue-600 font-semibold hover:bg-blue-50 transition"
           >
             <RotateCcw size={18} />
             Retake / Clear
           </button>
           
-          {/* Tombol Upload New - Diubah jadi label agar bisa trigger input file */}
           <label className="flex items-center gap-2 px-6 py-3 rounded-full border border-blue-500 text-blue-600 font-semibold hover:bg-blue-50 transition cursor-pointer">
             <Upload size={18} />
             Upload New
@@ -178,9 +223,24 @@ export default function EditPage() {
           </label>
 
           <div className="relative group">
-            <button className="flex items-center gap-2 px-8 py-3 rounded-full bg-blue-600 text-white font-semibold hover:bg-blue-700 shadow-md shadow-blue-200 transition">
-              Download
-              <ChevronDown size={18} />
+            <button 
+                onClick={handleDownload}
+                disabled={isDownloading}
+                className={`flex items-center gap-2 px-8 py-3 rounded-full bg-blue-600 text-white font-semibold shadow-md shadow-blue-200 transition
+                    ${isDownloading ? 'opacity-70 cursor-wait' : 'hover:bg-blue-700'}
+                `}
+            >
+              {isDownloading ? (
+                  <>
+                    <Loader2 size={18} className="animate-spin" />
+                    Processing...
+                  </>
+              ) : (
+                  <>
+                    Download
+                    <ChevronDown size={18} />
+                  </>
+              )}
             </button>
           </div>
         </div>
