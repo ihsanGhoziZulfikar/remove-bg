@@ -2,7 +2,6 @@
 
 import React, { useState, useRef, useEffect, useCallback } from "react";
 import Cropper from "react-easy-crop";
-// Pastikan createImage diimport (tambahkan export di file utils/cropImage.ts jika belum)
 import getCroppedImg, { createImage } from "../../utils/cropImage";
 
 import {
