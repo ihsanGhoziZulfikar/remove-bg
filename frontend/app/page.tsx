@@ -382,6 +382,12 @@ export default function RemoveBGApp() {
                       >
                         Try Another
                       </button>
+                      <a
+                        href="/edit"
+                        className="bg-blue-300 text-white rounded-3xl px-6 py-2 text-sm font-medium hover:bg-[#0056A3] transition-colors"
+                      >
+                        Edit
+                      </a>
                     </div>
                   </div>
                 ) : uploadedFile ? (
